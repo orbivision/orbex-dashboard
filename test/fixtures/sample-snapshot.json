@@ -1,0 +1,275 @@
+{
+  "name": "sample-workspace",
+  "generatedAt": "2026-11-14T12:00:00.000Z",
+  "noGh": true,
+  "git": {
+    "sha": "abc1234",
+    "dirty": false,
+    "githubBase": "https://github.com/orbivision/orbex/blob/main/examples/sample-workspace/",
+    "upstream": "origin/main",
+    "behind": 0,
+    "ahead": 0,
+    "error": null
+  },
+  "next": {
+    "projects": [
+      {
+        "id": "DEMO-14",
+        "num": 14,
+        "title": "Move CI to the new runner images",
+        "status": "blocked",
+        "opened": "2026-10-12",
+        "priority": "medium",
+        "file": "projects/DEMO-14/plan.md"
+      },
+      {
+        "id": "DEMO-12",
+        "num": 12,
+        "title": "Audit log for admin actions",
+        "status": "active",
+        "opened": "2026-09-29",
+        "priority": "high",
+        "file": "projects/DEMO-12/plan.md"
+      },
+      {
+        "id": "DEMO-15",
+        "num": 15,
+        "title": "Weekly digest email",
+        "status": "open",
+        "opened": "2026-10-20",
+        "priority": "low",
+        "file": "projects/DEMO-15/plan.md"
+      }
+    ],
+    "backlog": [
+      {
+        "section": "Now",
+        "title": "Decide on the audit-log retention period",
+        "text": "**Decide on the audit-log retention period** — the audit log needs one before it can ship."
+      },
+      {
+        "section": "Soon",
+        "title": "Keyboard shortcuts on the list views",
+        "text": "**Keyboard shortcuts on the list views** — power users keep asking."
+      },
+      {
+        "section": "Soon",
+        "title": "`worker` logs are too chatty",
+        "text": "**`worker` logs are too chatty** — half the volume is a debug line left on."
+      },
+      {
+        "section": "Soon",
+        "title": "Empty states for new accounts",
+        "text": "**Empty states for new accounts** — every list is blank on day one."
+      },
+      {
+        "section": "Someday",
+        "title": "Public status page",
+        "text": "**Public status page**"
+      },
+      {
+        "section": "Someday",
+        "title": "CSV import for contacts",
+        "text": "**CSV import for contacts**"
+      }
+    ],
+    "inbox": [],
+    "inboxError": "skipped (--no-gh)",
+    "memoryReview": [
+      {
+        "file": "search-provider-quirks.md",
+        "reviewed": "2026-08-20",
+        "days": 86
+      }
+    ],
+    "memoryReviewError": null
+  },
+  "index": {
+    "key": "DEMO",
+    "projects": [
+      {
+        "id": "DEMO-15",
+        "num": 15,
+        "file": "projects/DEMO-15/plan.md",
+        "title": "Weekly digest email",
+        "status": "open",
+        "opened": "2026-10-20",
+        "priority": "low",
+        "repos": [
+          "worker"
+        ]
+      },
+      {
+        "id": "DEMO-14",
+        "num": 14,
+        "file": "projects/DEMO-14/plan.md",
+        "title": "Move CI to the new runner images",
+        "status": "blocked",
+        "opened": "2026-10-12",
+        "priority": "medium",
+        "repos": [
+          "infra"
+        ]
+      },
+      {
+        "id": "DEMO-13",
+        "num": 13,
+        "file": "projects/DEMO-13/plan.md",
+        "title": "Mobile layout for the reports page",
+        "status": "done",
+        "opened": "2026-10-05",
+        "closed": "2026-10-09",
+        "repos": [
+          "app"
+        ]
+      },
+      {
+        "id": "DEMO-12",
+        "num": 12,
+        "file": "projects/DEMO-12/plan.md",
+        "title": "Audit log for admin actions",
+        "status": "active",
+        "opened": "2026-09-29",
+        "priority": "high",
+        "repos": [
+          "api",
+          "app"
+        ]
+      },
+      {
+        "id": "DEMO-11",
+        "num": 11,
+        "file": "projects/DEMO-11/plan.md",
+        "title": "Search results ignore accents",
+        "status": "done",
+        "opened": "2026-09-21",
+        "closed": "2026-09-24",
+        "repos": [
+          "api"
+        ]
+      },
+      {
+        "id": "DEMO-10",
+        "num": 10,
+        "file": "projects/DEMO-10/plan.md",
+        "title": "Flaky end-to-end test on checkout",
+        "status": "done",
+        "opened": "2026-09-15",
+        "closed": "2026-09-15",
+        "repos": [
+          "app"
+        ]
+      },
+      {
+        "id": "DEMO-9",
+        "num": 9,
+        "file": "projects/DEMO-9/plan.md",
+        "title": "Onboarding checklist for new accounts",
+        "status": "done",
+        "opened": "2026-09-08",
+        "closed": "2026-09-22",
+        "repos": [
+          "app"
+        ]
+      },
+      {
+        "id": "DEMO-8",
+        "num": 8,
+        "file": "projects/DEMO-8/plan.md",
+        "title": "Upgrade the database driver",
+        "status": "done",
+        "opened": "2026-09-02",
+        "closed": "2026-09-04",
+        "repos": [
+          "api",
+          "worker"
+        ]
+      },
+      {
+        "id": "DEMO-7",
+        "num": 7,
+        "file": "projects/DEMO-7/plan.md",
+        "title": "Replace the hand-rolled date picker",
+        "status": "dropped",
+        "opened": "2026-09-01",
+        "repos": [
+          "app"
+        ]
+      },
+      {
+        "id": "DEMO-6",
+        "num": 6,
+        "file": "projects/DEMO-6/plan.md",
+        "title": "Rate-limit the public search endpoint",
+        "status": "done",
+        "opened": "2026-08-25",
+        "closed": "2026-08-26",
+        "repos": [
+          "api"
+        ]
+      },
+      {
+        "id": "DEMO-5",
+        "num": 5,
+        "file": "projects/DEMO-5/plan.md",
+        "title": "Dark mode for the settings screens",
+        "status": "done",
+        "opened": "2026-08-18",
+        "closed": "2026-08-29",
+        "repos": [
+          "app"
+        ]
+      },
+      {
+        "id": "DEMO-4",
+        "num": 4,
+        "file": "projects/DEMO-4/plan.md",
+        "title": "Nightly export job runs twice",
+        "status": "done",
+        "opened": "2026-08-12",
+        "closed": "2026-08-14",
+        "repos": [
+          "worker"
+        ]
+      },
+      {
+        "id": "DEMO-3",
+        "num": 3,
+        "file": "projects/DEMO-3/plan.md",
+        "title": "Sign-in page loses the return URL",
+        "status": "done",
+        "opened": "2026-08-10",
+        "closed": "2026-08-10",
+        "repos": [
+          "app"
+        ]
+      },
+      {
+        "id": "DEMO-2",
+        "num": 2,
+        "file": "projects/DEMO-2/plan.md",
+        "title": "Move image uploads to object storage",
+        "status": "done",
+        "opened": "2026-08-04",
+        "closed": "2026-08-11",
+        "repos": [
+          "app",
+          "infra"
+        ]
+      },
+      {
+        "id": "DEMO-1",
+        "num": 1,
+        "file": "projects/DEMO-1/plan.md",
+        "title": "Set up the workspace and the first plan",
+        "status": "done",
+        "opened": "2026-08-03",
+        "closed": "2026-08-03",
+        "repos": [
+          "app"
+        ]
+      }
+    ],
+    "problems": []
+  }
+}

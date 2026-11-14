@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+/* Dark is the default; [data-theme="light"] is the toggle's other state. The palette is
+   orbex's (dashboard.mjs): magenta #CF27E0 is series 1 in both modes, burnt orange #D9681F
+   series 2 — validated for colour-blind separation. Never pair the magenta with a blue: every
+   blue fails CVD separation against it. */
+:root {
+  color-scheme: dark;
+  --page: #120f15; --surface: #1b1720; --ink: #f4eff6; --ink-2: #c9c0cd; --muted: #a39aa8;
+  --axis: #8d8492; --grid: #2e2833; --base: #443c4a; --ring: rgb(255 255 255 / .10);
+  --s1: #CF27E0; --s2: #D9681F; --accent: #E27AF0; --brand: #CF27E0;
+  --err: #ff8a80; --err-bg: #2c1518; --warn: #f0b37e; --warn-bg: #2a1d12; --code: #2a2430; --logo-ink: #f2f2f2;
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+  --page: #f7f2f8; --surface: #fdfbfd; --ink: #120f15; --ink-2: #4f4754; --muted: #6e6573;
+  --axis: #857c8a; --grid: #ebe3ee; --base: #cfc5d3; --ring: rgb(18 15 21 / .10);
+  --s1: #CF27E0; --s2: #D9681F; --accent: #A11AB0; --brand: #CF27E0;
+  --err: #b42318; --err-bg: #fdf0ee; --warn: #8a4a12; --warn-bg: #fdf3e8; --code: #f1e9f3; --logo-ink: #000000;
+}
+
+@theme inline {
+  --color-page: var(--page);
+  --color-surface: var(--surface);
+  --color-ink: var(--ink);
+  --color-ink-2: var(--ink-2);
+  --color-muted: var(--muted);
+  --color-axis: var(--axis);
+  --color-grid: var(--grid);
+  --color-base: var(--base);
+  --color-ring: var(--ring);
+  --color-s1: var(--s1);
+  --color-s2: var(--s2);
+  --color-accent: var(--accent);
+  --color-brand: var(--brand);
+  --color-err: var(--err);
+  --color-err-bg: var(--err-bg);
+  --color-warn: var(--warn);
+  --color-warn-bg: var(--warn-bg);
+  --color-code: var(--code);
+}
+
+@layer base {
+  body { @apply bg-page text-ink antialiased; font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  a { text-underline-offset: 2px; }
+  a:hover { color: var(--accent); }
+  code { @apply bg-code rounded px-1 py-px; font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; }
+  svg text { font: 12px system-ui, -apple-system, sans-serif; }
+  .logo .wordmark { fill: var(--logo-ink); }
+}

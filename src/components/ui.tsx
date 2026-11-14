@@ -1,0 +1,58 @@
+import type { ReactNode } from 'react';
+
+export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <section className={`bg-surface border border-ring rounded-xl p-5 ${className}`}>{children}</section>;
+}
+
+export function Count({ n }: { n: number | string }) {
+  return <span className="text-muted font-medium ml-1">{n}</span>;
+}
+
+export function H2({ children }: { children: ReactNode }) {
+  return <h2 className="text-lg font-semibold mb-3">{children}</h2>;
+}
+
+export function Empty({ children }: { children: ReactNode }) {
+  return <p className="text-muted">{children}</p>;
+}
+
+export function ErrorBox({ children }: { children: ReactNode }) {
+  return <div role="alert" className="text-err bg-err-bg rounded-lg px-3 py-2">{children}</div>;
+}
+
+export function Note({ children }: { children: ReactNode }) {
+  return <p className="text-ink-2 text-sm mt-1">{children}</p>;
+}
+
+/** Backlog/inbox titles carry markdown backticks; render them as code, everything else as text. */
+export function Md({ text }: { text: string }) {
+  return <>{text.split(/`([^`]+)`/).map((part, i) => (i % 2 ? <code key={i}>{part}</code> : part))}</>;
+}
+
+export function TableView({ head, rows }: { head: string[]; rows: (string | number)[][] }) {
+  return (
+    <details className="mt-2 text-sm group">
+      <summary className="text-muted cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+        <span className="group-open:hidden">▸ </span><span className="hidden group-open:inline">▾ </span>Table view
+      </summary>
+      <table className="w-full mt-2 border-collapse">
+        <thead><tr>{head.map((h) => <th key={h} className="text-left text-muted font-medium px-2 py-1 border-b border-grid">{h}</th>)}</tr></thead>
+        <tbody>{rows.map((r, i) => <tr key={i}>{r.map((c, j) => <td key={j} className="px-2 py-1 border-b border-grid">{c}</td>)}</tr>)}</tbody>
+      </table>
+    </details>
+  );
+}
+
+export function Legend({ items }: { items: [string, string][] }) {
+  return (
+    <ul className="flex gap-4 text-sm text-ink-2 mt-1.5">
+      {items.map(([cls, label]) => (
+        <li key={label} className="flex items-center gap-1.5"><i className={`inline-block size-2.5 rounded-[3px] ${cls}`} />{label}</li>
+      ))}
+    </ul>
+  );
+}
+
+export function PlanLink({ href, children, className = '' }: { href: string | null; children: ReactNode; className?: string }) {
+  return href ? <a href={href} target="_blank" rel="noreferrer" className={className}>{children}</a> : <span className={className}>{children}</span>;
+}
