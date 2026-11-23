@@ -37,7 +37,7 @@ export default function App() {
 
   return (
     <Shell path={path} session={session} onCapture={openCapture}>
-      <main className="max-w-[1040px] mx-auto px-4 pt-8 pb-16">
+      <main className="px-4 sm:px-6 lg:px-8 pt-8 pb-16">
         {snapshot && error && (
           // Keep the last good data, but never let stale look fresh.
           <div className="mb-4"><ErrorBox><b>Refresh failed</b> — showing data from {new Date(snapshot.generatedAt).toLocaleTimeString()}. {error}</ErrorBox></div>
