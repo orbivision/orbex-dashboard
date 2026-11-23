@@ -13,6 +13,8 @@
 // The user's GitHub token is used once, to learn who they are, and then dropped. Reading the
 // workspace uses a separate server-side token (ORBEX_GITHUB_TOKEN) the browser never sees.
 
+import { LOGO_SVG } from './logo.mjs';
+
 export const SESSION_COOKIE = 'orbex_session';
 const STATE_COOKIE = 'orbex_oauth';
 const SESSION_DAYS = 30;
@@ -168,7 +170,7 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '
 function loginPage(url) {
   const next = safeNext(url.searchParams.get('next'));
   const out = url.searchParams.has('signed_out') ? '<p class="m">Signed out.</p>' : '';
-  return page(200, 'Orbex', `${out}<p><a class="b" href="/auth/login?go=1&amp;next=${encodeURIComponent(next)}">Sign in with GitHub</a></p>`);
+  return page(200, 'Sign in', `${out}<p><a class="b" href="/auth/login?go=1&amp;next=${encodeURIComponent(next)}">Sign in with GitHub</a></p>`);
 }
 
 /** A tiny self-contained page — served by the gate, so it can't depend on the (gated) bundle. */
@@ -176,9 +178,9 @@ export function page(status, title, body, cookies = []) {
   const h = new Headers({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
   for (const c of cookies) h.append('set-cookie', c);
   return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.png" type="image/png"><title>${esc(title)}</title>
-<style>:root{color-scheme:dark;--p:#120f15;--s:#1b1720;--i:#f4eff6;--m:#a39aa8;--b:#CF27E0}@media (prefers-color-scheme:light){:root{color-scheme:light;--p:#f7f2f8;--s:#fdfbfd;--i:#120f15;--m:#6e6573}}
+<style>:root{color-scheme:dark;--p:#120f15;--s:#1b1720;--i:#f4eff6;--m:#a39aa8;--b:#CF27E0;--w:#f2f2f2}@media (prefers-color-scheme:light){:root{color-scheme:light;--p:#f7f2f8;--s:#fdfbfd;--i:#120f15;--m:#6e6573;--w:#000}}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--p);color:var(--i);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{background:var(--s);border:1px solid rgb(128 128 128/.2);border-top:3px solid var(--b);border-radius:12px;padding:28px 32px;margin:16px;max-width:380px}
-h1{font-size:1.3rem;margin:0 0 12px}.m{color:var(--m)}a{color:var(--i)}.b{display:inline-block;background:var(--b);color:#fff;text-decoration:none;font-weight:600;border-radius:999px;padding:9px 18px}</style></head>
-<body><main><h1>${esc(title)}</h1>${body}</main></body></html>`, { status, headers: h });
+.logo{display:block;margin:0 0 20px}.logo .wordmark{fill:var(--w)}h1{font-size:1.3rem;margin:0 0 12px}.m{color:var(--m)}a{color:var(--i)}.b{display:inline-block;background:var(--b);color:#fff;text-decoration:none;font-weight:600;border-radius:999px;padding:9px 18px}</style></head>
+<body><main>${LOGO_SVG}<h1>${esc(title)}</h1>${body}</main></body></html>`, { status, headers: h });
 }

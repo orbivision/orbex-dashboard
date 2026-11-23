@@ -190,3 +190,15 @@ describe.skipIf(!existsSync(SAMPLE))('GitHubSource on the sample workspace', () 
     await expect(gh.snapshot()).rejects.toThrow(/\.orbex-workspace not found/);
   });
 });
+
+describe('sign-in page logo', () => {
+  it('is the same artwork as src/orbex-logo.svg, and appears on every gate page', async () => {
+    const { LOGO_SVG } = await import('../server/logo.mjs');
+    const paths = (s: string) => s.match(/ d="[^"]+"/g);
+    expect(paths(LOGO_SVG)).toEqual(paths(readFileSync(path.join(__dirname, '../src/orbex-logo.svg'), 'utf8')));
+    const res = await githubAuth(authConfig(ENV)).handle(new Request(`${ORIGIN}/auth/login`));
+    const html = await res!.text();
+    expect(html).toContain('aria-label="Orbex"');
+    expect(html).toContain('Sign in with GitHub');
+  });
+});
