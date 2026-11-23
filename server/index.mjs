@@ -6,16 +6,21 @@
 //   flags: --port 4870  --no-gh  --no-fetch  --workspace <dir> (or ORBEX_WORKSPACE)
 //          --orbex <dir> (or ORBEX_HOME) — run producers from that orbex clone instead of <workspace>/scripts
 //
-// GET /api/snapshot           cached ≤60 s, so several tabs don't each run `gh` and `git fetch`
-// GET /api/snapshot?fresh=1   bypasses the cache (the page's Refresh button)
+// The API itself is server/handlers.mjs (shared with the Netlify deployment); this file adapts it
+// to node:http and serves the client.
 //
-// Bound to loopback on purpose: plan titles are private, and nothing here authenticates.
+// Bound to loopback on purpose: plan titles are private, and nothing here authenticates. Since
+// ORBI-92 the API can also WRITE (capture → inbox/), so the Host header is checked too: a
+// DNS-rebinding page that resolves its own name to 127.0.0.1 arrives with the wrong Host.
 
 import { createServer } from 'node:http';
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildSnapshot, findWorkspace, resolveWorkspace } from './snapshot.mjs';
+import { Readable } from 'node:stream';
+import { findWorkspace, resolveWorkspace } from './snapshot.mjs';
+import { createApi, noAuth } from './handlers.mjs';
+import { LocalSource } from './sources/local.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const args = process.argv.slice(2);
@@ -24,7 +29,6 @@ const opt = (f) => (args.includes(f) ? args[args.indexOf(f) + 1] : undefined);
 
 const HOST = '127.0.0.1';
 const PORT = Number(opt('--port') ?? process.env.PORT ?? 4870);
-const CACHE_MS = 60_000;
 
 let WORKSPACE;
 try {
@@ -37,21 +41,26 @@ try {
 }
 
 const options = { noGh: flag('--no-gh'), fetch: !flag('--no-fetch') };
-let cache = null; // { at, body }
-let inflight = null;
+const api = createApi({ source: new LocalSource(WORKSPACE, options), auth: noAuth });
+const ALLOWED_HOSTS = new Set([`127.0.0.1:${PORT}`, `localhost:${PORT}`]);
 
-function snapshot(fresh) {
-  if (!fresh && cache && Date.now() - cache.at < CACHE_MS) return Promise.resolve(cache.body);
-  // One build at a time, whoever asked; a Refresh during a build shares that build.
-  inflight ??= buildSnapshot(WORKSPACE, options)
-    .then((s) => {
-      const body = JSON.stringify({ ok: true, snapshot: s });
-      cache = { at: Date.now(), body };
-      return body;
-    })
-    .catch((e) => JSON.stringify({ ok: false, error: e.message }))
-    .finally(() => { inflight = null; });
-  return inflight;
+/** node:http → Web Request → handlers.mjs → node:http. */
+async function handleApi(req, res) {
+  if (!ALLOWED_HOSTS.has(req.headers.host ?? '')) {
+    res.writeHead(421, { 'content-type': 'text/plain' }).end('unexpected Host header');
+    return;
+  }
+  const url = `http://${req.headers.host}${req.url}`;
+  const hasBody = req.method !== 'GET' && req.method !== 'HEAD';
+  const request = new Request(url, {
+    method: req.method,
+    headers: Object.entries(req.headers).flatMap(([k, v]) => (Array.isArray(v) ? v.map((x) => [k, x]) : v == null ? [] : [[k, v]])),
+    body: hasBody ? Readable.toWeb(req) : undefined,
+    duplex: hasBody ? 'half' : undefined,
+  });
+  const response = await api(request);
+  res.writeHead(response.status, Object.fromEntries(response.headers));
+  res.end(Buffer.from(await response.arrayBuffer()));
 }
 
 const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.json': 'application/json', '.woff2': 'font/woff2' };
@@ -74,13 +83,6 @@ function serveStatic(req, res) {
   createReadStream(file).pipe(res);
 }
 
-async function api(req, res) {
-  const fresh = new URL(req.url, 'http://x').searchParams.has('fresh');
-  const body = await snapshot(fresh);
-  res.writeHead(body.startsWith('{"ok":true') ? 200 : 502, { 'content-type': 'application/json', 'cache-control': 'no-store' });
-  res.end(body);
-}
-
 let vite = null;
 if (flag('--dev')) {
   const { createServer: createVite } = await import('vite');
@@ -88,7 +90,13 @@ if (flag('--dev')) {
 }
 
 const server = createServer((req, res) => {
-  if (req.url.startsWith('/api/snapshot')) return void api(req, res);
+  if (req.url.startsWith('/api/')) {
+    handleApi(req, res).catch((e) => {
+      if (!res.headersSent) res.writeHead(500, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ ok: false, error: e.message }));
+    });
+    return;
+  }
   if (vite) return vite.middlewares(req, res);
   serveStatic(req, res);
 });

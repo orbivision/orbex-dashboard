@@ -1,5 +1,5 @@
-import type { Snapshot } from '../types';
-import { ageDays, plural, planHref } from '../derive';
+import { isFile, type Snapshot } from '../types';
+import { ageDays, plural } from '../derive';
 import { Card, Count, Empty, ErrorBox, H2, Md, Note, PlanLink } from './ui';
 
 export function InFlight({ snapshot, today }: { snapshot: Snapshot; today: number }) {
@@ -14,7 +14,7 @@ export function InFlight({ snapshot, today }: { snapshot: Snapshot; today: numbe
           const age = ageDays(p, today);
           return (
             <li key={p.id} className="border border-ring border-t-[3px] border-t-brand rounded-[10px] px-3.5 py-3">
-              <PlanLink href={planHref(snapshot, p.file)} className="font-semibold no-underline hover:underline">
+              <PlanLink id={p.id} className="font-semibold no-underline hover:underline">
                 <span className="text-muted font-medium">{p.id}</span> {p.title}
               </PlanLink>
               <p className="mt-1.5 text-sm text-ink-2">
@@ -31,25 +31,62 @@ export function InFlight({ snapshot, today }: { snapshot: Snapshot; today: numbe
   );
 }
 
-export function Inbox({ snapshot }: { snapshot: Snapshot }) {
-  const { inbox, inboxError } = snapshot.next;
+export function Inbox({ snapshot, onCapture }: { snapshot: Snapshot; onCapture?: () => void }) {
+  const { inbox, inboxError, inboxFilesError } = snapshot.next;
+  // Two sources, each with its own error (ORBI-92): an offline `gh` must never hide the files,
+  // and an unreadable inbox/ must never hide the issues. Only "nothing readable at all" is '–'.
+  const issuesUnknown = !snapshot.noGh && !!inboxError;
+  const unknown = !inbox.length && (issuesUnknown || !!inboxFilesError);
   return (
     <Card>
-      <H2>Inbox <Count n={inboxError ? '–' : inbox.length} /></H2>
+      <div className="flex items-baseline justify-between gap-3">
+        <H2>Inbox <Count n={unknown ? '–' : inbox.length} /></H2>
+        {onCapture && <button type="button" onClick={onCapture} className="text-sm text-accent hover:underline cursor-pointer">＋ Capture</button>}
+      </div>
+      {inboxFilesError && <div className="mb-2"><ErrorBox><b>Captures not listed:</b> {inboxFilesError}.</ErrorBox></div>}
       {snapshot.noGh ? (
         // --no-gh is a choice, not a failure — say so plainly rather than in the error colour.
-        <Empty>Not checked (<code>--no-gh</code>).</Empty>
+        <p className="text-muted text-sm mb-1">GitHub Issues not checked (<code>--no-gh</code>).</p>
       ) : inboxError ? (
-        <ErrorBox><b>Couldn't read the inbox:</b> {inboxError}. This is not the same as empty.</ErrorBox>
-      ) : inbox.length ? (
+        <div className="mb-2"><ErrorBox><b>Couldn't read GitHub Issues:</b> {inboxError}. This is not the same as empty.</ErrorBox></div>
+      ) : null}
+      {inbox.length ? (
         <>
-          <ul className="list-disc pl-5 my-2 space-y-0.5">{inbox.map((i) => <li key={i.number}><a href={i.url} target="_blank" rel="noreferrer">#{i.number}</a> <Md text={i.title} /></li>)}</ul>
+          <ul className="my-2 space-y-1.5">
+            {inbox.map((i) => isFile(i) ? (
+              <li key={i.file}>
+                <InboxFile item={i} />
+              </li>
+            ) : (
+              <li key={`#${i.number}`} className="flex gap-2">
+                <a href={i.url} target="_blank" rel="noreferrer" className="text-muted shrink-0">#{i.number}</a>
+                <span><Md text={i.title} /></span>
+              </li>
+            ))}
+          </ul>
           <Note>Untriaged — a decision owed, not work to pick up.</Note>
         </>
-      ) : (
+      ) : !unknown && (
         <Empty>Empty — nothing untriaged.</Empty>
       )}
     </Card>
+  );
+}
+
+function InboxFile({ item }: { item: import('../types').FileItem }) {
+  const when = item.createdAt ? new Date(item.createdAt) : null;
+  const head = (
+    <>
+      <span className="text-muted shrink-0" title={item.file}>✎</span>
+      <span><Md text={item.title} />{when && <span className="text-muted text-sm"> · {when.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>}</span>
+    </>
+  );
+  if (!item.body) return <div className="flex gap-2">{head}</div>;
+  return (
+    <details className="group">
+      <summary className="flex gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">{head}</summary>
+      <p className="ml-6 mt-1 text-sm text-ink-2 whitespace-pre-wrap">{item.body}</p>
+    </details>
   );
 }
 
