@@ -13,7 +13,7 @@ import { useNow, useSnapshot } from './useSnapshot';
 
 export default function App() {
   const path = usePath();
-  const { session } = useSession();
+  const { session, error: sessionError } = useSession();
   const { snapshot, error, loading, attemptedAt, refresh, addCapture } = useSnapshot();
   const [capturing, setCapturing] = useState(false);
   const now = useNow();
@@ -41,6 +41,7 @@ export default function App() {
           // Keep the last good data, but never let stale look fresh.
           <div className="mb-4"><ErrorBox><b>Refresh failed</b> — showing data from {new Date(snapshot.generatedAt).toLocaleTimeString()}. {error}</ErrorBox></div>
         )}
+        {sessionError && <div className="mb-4"><ErrorBox><b>Session unavailable:</b> {sessionError}.</ErrorBox></div>}
         {page}
         <footer className="text-sm text-muted mt-8">Generated from the workspace's own producers on every refresh — this page is never the source.</footer>
       </main>
