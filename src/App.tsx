@@ -21,13 +21,14 @@ export default function App() {
   const openCapture = () => setCapturing(true);
   const canCapture = !!session?.canCapture;
 
+  const refreshProps = { now, attemptedAt, loading, refresh };
   let page;
   if (!snapshot) {
     page = error ? <ErrorBox><b>Couldn't build the dashboard:</b> {error}</ErrorBox> : <p className="text-muted">Loading…</p>;
   } else if (path === '/projects') {
-    page = <Projects snapshot={snapshot} today={today} />;
+    page = <Projects {...refreshProps} snapshot={snapshot} today={today} />;
   } else if (path.startsWith('/projects/')) {
-    page = <ProjectDetail id={decodeURIComponent(path.slice('/projects/'.length))} snapshot={snapshot} refresh={refresh} />;
+    page = <ProjectDetail {...refreshProps} snapshot={snapshot} id={decodeURIComponent(path.slice('/projects/'.length))} />;
   } else if (path === '/') {
     page = <Dashboard snapshot={snapshot} now={now} today={today} attemptedAt={attemptedAt} loading={loading} refresh={refresh} onCapture={canCapture ? openCapture : undefined} />;
   } else {

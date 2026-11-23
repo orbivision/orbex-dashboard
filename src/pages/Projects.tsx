@@ -2,8 +2,9 @@
 // (in flight first) — this view re-sorts nothing it could disagree about.
 import { useMemo, useState } from 'react';
 import { STATUSES, ageDays, counts, plural } from '../derive';
-import type { Project, Snapshot } from '../types';
+import type { Project } from '../types';
 import { Card, Count, Empty, H2, PlanLink } from '../components/ui';
+import { RefreshBar, type RefreshProps } from '../components/Header';
 
 const ORDER: Record<string, number> = { blocked: 0, active: 1, open: 2, done: 3, dropped: 4 };
 const FILTER_KEY = 'orbex-dashboard-projects-filter';
@@ -16,7 +17,8 @@ function loadFilter(): string[] {
   return ['blocked', 'active', 'open'];
 }
 
-export function Projects({ snapshot, today }: { snapshot: Snapshot; today: number }) {
+export function Projects({ today, ...refreshProps }: RefreshProps & { today: number }) {
+  const { snapshot } = refreshProps;
   const all = snapshot.index.projects;
   const c = counts(all);
   const [statuses, setStatuses] = useState<string[]>(loadFilter);
@@ -42,7 +44,8 @@ export function Projects({ snapshot, today }: { snapshot: Snapshot; today: numbe
   return (
     <>
       <h1 className="text-[2rem] font-bold tracking-tight leading-tight mb-1">Projects</h1>
-      <p className="text-ink-2 mb-5">{plural(all.length, 'project')} in {snapshot.name}</p>
+      <p className="text-ink-2 mb-3">{plural(all.length, 'project')} in {snapshot.name}</p>
+      <RefreshBar {...refreshProps} className="mb-5" />
       <Card className="mb-4">
         <div className="flex flex-wrap gap-2 mb-3" role="group" aria-label="Filter by status">
           {STATUSES.map((s) => {
