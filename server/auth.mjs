@@ -175,7 +175,7 @@ function loginPage(url) {
 export function page(status, title, body, cookies = []) {
   const h = new Headers({ 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store', 'x-robots-tag': 'noindex' });
   for (const c of cookies) h.append('set-cookie', c);
-  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><title>${esc(title)}</title>
+  return new Response(`<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex"><link rel="icon" href="/favicon.svg" type="image/svg+xml"><link rel="icon" href="/favicon.png" type="image/png"><title>${esc(title)}</title>
 <style>:root{color-scheme:dark;--p:#120f15;--s:#1b1720;--i:#f4eff6;--m:#a39aa8;--b:#CF27E0}@media (prefers-color-scheme:light){:root{color-scheme:light;--p:#f7f2f8;--s:#fdfbfd;--i:#120f15;--m:#6e6573}}
 body{margin:0;min-height:100vh;display:grid;place-items:center;background:var(--p);color:var(--i);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
 main{background:var(--s);border:1px solid rgb(128 128 128/.2);border-top:3px solid var(--b);border-radius:12px;padding:28px 32px;margin:16px;max-width:380px}

@@ -1,4 +1,4 @@
-// Every path except /auth/* passes through here first — the page, its JS and CSS, and /api.
+// Every path except /auth/* and the favicon passes through here first — the page, its JS and CSS, and /api.
 // The bundle holds no workspace data, but a private workspace's dashboard shouldn't even admit
 // to existing for an anonymous visitor. Misconfigured = everyone refused, never everyone allowed.
 import { authConfig, githubAuth, page } from '../../server/auth.mjs';
@@ -28,4 +28,5 @@ export default async (req, context) => {
   return new Response('not signed in', { status: 401, headers: { 'cache-control': 'no-store' } });
 };
 
-export const config = { path: '/*', excludedPath: ['/auth/*'] };
+// The favicon is the public Orbex mark, not workspace data — and the sign-in page needs it.
+export const config = { path: '/*', excludedPath: ['/auth/*', '/favicon.svg', '/favicon.png'] };
