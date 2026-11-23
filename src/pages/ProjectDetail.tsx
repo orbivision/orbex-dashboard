@@ -4,9 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { planHref, plural } from '../derive';
-import type { Snapshot } from '../types';
 import { Link } from '../router';
 import { ErrorBox } from '../components/ui';
+import { RefreshBar, type RefreshProps } from '../components/Header';
 
 /** Drop the YAML frontmatter and the `# ID: title` line — both are shown from the index instead. */
 export function planBody(text: string) {
@@ -23,7 +23,8 @@ export function renderPlan(text: string) {
   return DOMPurify.sanitize(html);
 }
 
-export function ProjectDetail({ id, snapshot, refresh }: { id: string; snapshot: Snapshot; refresh: () => void }) {
+export function ProjectDetail({ id, ...refreshProps }: RefreshProps & { id: string }) {
+  const { snapshot, refresh } = refreshProps;
   const p = snapshot.index.projects.find((q) => q.id === id);
   const [state, setState] = useState<{ html?: string; error?: string }>({});
   // A link to a project newer than the cached snapshot: refresh once before saying it doesn't exist.
@@ -65,7 +66,10 @@ export function ProjectDetail({ id, snapshot, refresh }: { id: string; snapshot:
 
   return (
     <article>
-      <p className="mb-4 text-sm"><Link to="/projects">← Projects</Link></p>
+      <div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
+        <Link to="/projects">← Projects</Link>
+        <RefreshBar {...refreshProps} className="flex-1" />
+      </div>
       <p className="text-muted font-medium">{p.id}</p>
       <h1 className="text-[1.75rem] font-bold tracking-tight leading-tight mb-2">{p.title}</h1>
       <p className="text-sm text-ink-2 flex flex-wrap gap-x-2 gap-y-1 items-center mb-6">

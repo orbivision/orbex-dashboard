@@ -38,14 +38,41 @@ function ago(ms: number) {
   return m < 1 ? 'just now' : m === 1 ? '1 min ago' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ${m % 60} min ago`;
 }
 
-export function Header({ snapshot, now, attemptedAt, loading, refresh }: {
-  snapshot: Snapshot; now: Date; attemptedAt: number | null; loading: boolean; refresh: () => void;
-}) {
-  const c = counts(snapshot.index.projects);
+export interface RefreshProps { snapshot: Snapshot; now: Date; attemptedAt: number | null; loading: boolean; refresh: () => void }
+
+/**
+ * "Updated N min ago from abc123 · next refresh in N min  [↻ Refresh]". Every view shows it
+ * (ORBI-92): they all draw the same snapshot, so every view needs to say how fresh it is.
+ */
+export function RefreshBar({ snapshot, now, attemptedAt, loading, refresh, className = '' }: RefreshProps & { className?: string }) {
   const { git } = snapshot;
   const generated = new Date(snapshot.generatedAt);
   const age = now.getTime() - generated.getTime();
   const nextIn = attemptedAt ? Math.min(REFRESH_MS, Math.max(0, attemptedAt + REFRESH_MS - now.getTime())) : null;
+  return (
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted ${className}`}>
+      <span title={generated.toLocaleString()}>
+        Updated {ago(age)}
+        {git.sha && (snapshot.source === 'github'
+          ? <> from <code>{git.upstream ?? 'origin'}</code> @ <code>{git.sha}</code> · hosted: shows what's pushed</>
+          : <> from <code>{git.sha}</code>{git.dirty && ' + uncommitted changes'}</>)}
+      </span>
+      {nextIn != null && <span>· next refresh in {Math.ceil(nextIn / 60_000)} min</span>}
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={loading}
+        className="ml-auto text-ink-2 border border-ring rounded-full px-3 py-1 cursor-pointer hover:text-ink hover:border-accent disabled:opacity-60 disabled:cursor-wait"
+      >
+        {loading ? 'Refreshing…' : '↻ Refresh'}
+      </button>
+    </div>
+  );
+}
+
+export function Header(props: RefreshProps) {
+  const { snapshot } = props;
+  const c = counts(snapshot.index.projects);
   return (
     <header className="mb-6 pb-5 border-b-2 border-brand">
       <h1 className="text-[2rem] font-bold tracking-tight leading-tight">{snapshot.name}</h1>
@@ -55,24 +82,8 @@ export function Header({ snapshot, now, attemptedAt, loading, refresh }: {
           <li key={s} className="bg-surface border border-ring rounded-full px-3 py-1 text-ink-2"><b className="text-accent">{c[s]}</b> {s}</li>
         ))}
       </ul>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-        <span title={generated.toLocaleString()}>
-          Updated {ago(age)}
-          {git.sha && (snapshot.source === 'github'
-            ? <> from <code>{git.upstream ?? 'origin'}</code> @ <code>{git.sha}</code> · hosted: shows what's pushed</>
-            : <> from <code>{git.sha}</code>{git.dirty && ' + uncommitted changes'}</>)}
-        </span>
-        {nextIn != null && <span>· next refresh in {Math.ceil(nextIn / 60_000)} min</span>}
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={loading}
-          className="ml-auto text-ink-2 border border-ring rounded-full px-3 py-1 cursor-pointer hover:text-ink hover:border-accent disabled:opacity-60 disabled:cursor-wait"
-        >
-          {loading ? 'Refreshing…' : '↻ Refresh'}
-        </button>
-      </div>
-      <OriginStatus git={git} />
+      <RefreshBar {...props} />
+      <OriginStatus git={snapshot.git} />
     </header>
   );
 }
