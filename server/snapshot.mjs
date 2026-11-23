@@ -130,18 +130,29 @@ export function validate(next, index) {
   }
 }
 
+/**
+ * Just the two producers, validated — no git. GitHubSource uses this on its throwaway mirror;
+ * `ws` is `{ root, scripts }`.
+ */
+export async function buildSnapshotFromProducers(ws, { noGh = false } = {}) {
+  const [next, index] = await Promise.all([
+    produce(ws, 'next.mjs', noGh ? ['--no-gh'] : []),
+    produce(ws, 'build-project-index.mjs'),
+  ]);
+  validate(next, index);
+  return { next, index };
+}
+
 /** `ws` is resolveWorkspace()'s result. */
 export async function buildSnapshot(ws, { noGh = false, fetch = true } = {}) {
   const { root } = ws;
-  const [next, index, sha, status, gh, origin] = await Promise.all([
-    produce(ws, 'next.mjs', noGh ? ['--no-gh'] : []),
-    produce(ws, 'build-project-index.mjs'),
+  const [{ next, index }, sha, status, gh, origin] = await Promise.all([
+    buildSnapshotFromProducers(ws, { noGh }),
     git(root, 'rev-parse', '--short', 'HEAD'),
     git(root, 'status', '--porcelain'),
     githubBase(root),
     behindOrigin(root, { fetch }),
   ]);
-  validate(next, index);
   return {
     name: path.basename(root),
     generatedAt: new Date().toISOString(),

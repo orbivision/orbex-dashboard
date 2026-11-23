@@ -1,0 +1,27 @@
+# Hosted mode (ORBI-92). Everything personal is an environment variable in the Netlify UI —
+# see README "Hosting on Netlify". Local mode (`npm start`) ignores this file entirely.
+[build]
+  command = "npm run build && node scripts/fetch-orbex.mjs"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "22"
+
+[functions]
+  node_bundler = "esbuild"
+  # The producers run as child processes, so they ship as files, not bundled code.
+  included_files = ["vendor/orbex/scripts/**"]
+
+# Client-side routes (/projects, /projects/ORBI-12) all serve the app.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Robots-Tag = "noindex"
+    Referrer-Policy = "same-origin"
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
