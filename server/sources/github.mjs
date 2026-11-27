@@ -8,7 +8,9 @@
 // Re-implementing them here would be a second frontmatter reader that can disagree with the first.
 //
 // GitHub Issues come from REST instead of `gh`, and are merged in exactly as next.mjs would.
-// Capture is one Contents-API commit creating inbox/<file>.md on the branch.
+// Capture is one Contents-API commit creating inbox/<file>.md on the branch. Edit and discard are
+// one commit each too, passing the blob sha the editor loaded — GitHub's own check refuses a stale
+// one, which is exactly the version guard LocalSource implements by hand.
 //
 // Hosted shows what's PUSHED. Uncommitted work on a laptop never appears here, so `dirty` and
 // `behind` are meaningless and reported as false/null; the header says "hosted".
@@ -17,7 +19,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { buildSnapshotFromProducers } from '../snapshot.mjs';
-import { captureContent, captureFilename, captureItem } from '../capture.mjs';
+import { captureContent, captureFilename, captureItem, conflict, editedContent, gone, isInboxName, splitInbox } from '../capture.mjs';
 
 const API = 'https://api.github.com';
 const PLAN_NAMES = ['plan.md', 'recommendation.md'];
@@ -227,5 +229,65 @@ export class GitHubSource {
       }
     }
     throw new Error('could not find a free filename in inbox/');
+  }
+
+  // ── Edit / discard (ORBI-92 addendum) ──────────────────────────────────────────────────────
+
+  inboxContents(name) {
+    if (!isInboxName(name)) throw new Error(`not an inbox file name: ${name}`);
+    const p = `${this.config.prefix}inbox/${name}`.split('/').map(encodeURIComponent).join('/');
+    return `/repos/${this.config.owner}/${this.config.name}/contents/${p}`;
+  }
+
+  /** GitHub's answer to a write based on a stale or missing file, as OUR 409/404. */
+  static mapWriteError(e, name) {
+    if (e.status === 409 || e.status === 422) return conflict(); // "sha does not match"
+    if (e.status === 404) return gone(name);
+    return e;
+  }
+
+  async readInbox(name) {
+    const branch = await this.resolveBranch();
+    let out;
+    try {
+      out = await (await this.api(`${this.inboxContents(name)}?ref=${encodeURIComponent(branch)}`)).json();
+    } catch (e) {
+      throw e.status === 404 ? gone(name) : e;
+    }
+    // `sha` is the blob sha — the same value LocalSource computes, so versions mean one thing.
+    return { text: Buffer.from(out.content ?? '', 'base64').toString('utf8'), version: out.sha };
+  }
+
+  async editInbox({ name, version, title, body }) {
+    const branch = await this.resolveBranch();
+    const { text } = await this.readInbox(name);
+    const next = editedContent(text, { title, body });
+    try {
+      const out = await (await this.api(this.inboxContents(name), {
+        method: 'PUT',
+        headers: { 'content-type': 'application/json' },
+        // The sha the EDITOR loaded, not the one just read: a change in between must be refused.
+        body: JSON.stringify({ message: `inbox: edit ${title}`, content: Buffer.from(next, 'utf8').toString('base64'), sha: version, branch }),
+      })).json();
+      return { version: out.content?.sha ?? null, committed: true, commit: out.commit?.sha ?? null };
+    } catch (e) {
+      throw GitHubSource.mapWriteError(e, name);
+    }
+  }
+
+  async discardInbox({ name, version }) {
+    const branch = await this.resolveBranch();
+    const { text } = await this.readInbox(name);
+    const title = splitInbox(text).title || name;
+    try {
+      const out = await (await this.api(this.inboxContents(name), {
+        method: 'DELETE',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ message: `inbox: discard ${title}`, sha: version, branch }),
+      })).json();
+      return { committed: true, commit: out.commit?.sha ?? null };
+    } catch (e) {
+      throw GitHubSource.mapWriteError(e, name);
+    }
   }
 }

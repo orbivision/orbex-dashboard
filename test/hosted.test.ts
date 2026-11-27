@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { authConfig, githubAuth, safeNext, sign, unsign, SESSION_COOKIE } from '../server/auth.mjs';
+import { blobSha, splitInbox } from '../server/capture.mjs';
 import { createApi } from '../server/handlers.mjs';
 import { LocalSource } from '../server/sources/local.mjs';
 import { GitHubSource, githubConfig } from '../server/sources/github.mjs';
@@ -100,7 +101,9 @@ describe('github auth', () => {
 
 function fakeGitHub(root: string, { prefix = '' } = {}) {
   const commits: { path: string; body: any }[] = [];
+  const written = new Map<string, string | null>(); // repo path → text, or null once deleted
   const read = (rel: string) => { const f = path.join(root, rel); return existsSync(f) && statSync(f).isFile() ? { text: readFileSync(f, 'utf8'), isBinary: false } : null; };
+  const current = (p: string) => (written.has(p) ? written.get(p)! : read(p.slice(prefix.length))?.text ?? null);
   const tree = (rel: string, depth: number): any => {
     const d = path.join(root, rel);
     if (!existsSync(d) || !statSync(d).isDirectory()) return null;
@@ -128,13 +131,23 @@ function fakeGitHub(root: string, { prefix = '' } = {}) {
     ]);
     if (u.pathname.startsWith('/repos/o/ws/contents/')) {
       const p = decodeURIComponent(u.pathname.slice('/repos/o/ws/contents/'.length));
-      if (init.method === 'PUT') {
-        if (commits.some((c) => c.path === p)) return Response.json({ message: 'sha wasn\'t supplied' }, { status: 422 });
-        commits.push({ path: p, body: JSON.parse(String(init.body)) });
-        return Response.json({ commit: { sha: 'c0ffee' } }, { status: 201 });
+      const now = current(p);
+      if (init.method === 'PUT' || init.method === 'DELETE') {
+        const body = JSON.parse(String(init.body));
+        if (body.sha === undefined) {
+          if (now !== null || commits.some((c) => c.path === p)) return Response.json({ message: 'sha wasn\'t supplied' }, { status: 422 });
+        } else {
+          if (now === null) return Response.json({ message: 'Not Found' }, { status: 404 });
+          if (body.sha !== blobSha(now)) return Response.json({ message: `${p} does not match ${body.sha}` }, { status: 409 });
+        }
+        commits.push({ path: p, body });
+        const text = init.method === 'PUT' ? Buffer.from(body.content, 'base64').toString('utf8') : null;
+        written.set(p, text);
+        return Response.json({ commit: { sha: 'c0ffee' }, content: text === null ? null : { sha: blobSha(text) } }, { status: init.method === 'PUT' ? 201 : 200 });
       }
-      const r = read(p.slice(prefix.length));
-      return r ? new Response(r.text) : Response.json({ message: 'Not Found' }, { status: 404 });
+      if (now === null) return Response.json({ message: 'Not Found' }, { status: 404 });
+      const raw = (init.headers as Record<string, string>).accept?.includes('raw');
+      return raw ? new Response(now) : Response.json({ content: Buffer.from(now).toString('base64'), encoding: 'base64', sha: blobSha(now) });
     }
     throw new Error(`unexpected ${init.method ?? 'GET'} ${url}`);
   }) as unknown as typeof fetch;
@@ -182,6 +195,32 @@ describe.skipIf(!existsSync(SAMPLE))('GitHubSource on the sample workspace', () 
     expect(Buffer.from(fake.commits[0].body.content, 'base64').toString()).toMatch(/# Twice\n\nn\n$/);
     const plan = (await gh.snapshot()).index.projects[0];
     expect(await gh.readText(plan.file)).toMatch(/^---/);
+  });
+
+  it("edits and discards with GitHub's sha check as the version guard", async () => {
+    const fake = fakeGitHub(SAMPLE);
+    const gh = new GitHubSource(cfg, { orbexScripts: scripts, fetch: fake.fetch });
+    const name = '2026-11-20T0915-dark-mode-print-stylesheet.md';
+    const original = readFileSync(path.join(SAMPLE, 'inbox', name), 'utf8');
+
+    const got = await gh.readInbox(name);
+    expect(got).toEqual({ text: original, version: blobSha(original) }); // same version as LocalSource
+
+    const saved = await gh.editInbox({ name, version: got.version, title: 'Print styles', body: 'b' });
+    expect(saved).toMatchObject({ committed: true, commit: 'c0ffee' });
+    const put = fake.commits.at(-1)!.body;
+    expect(put).toMatchObject({ message: 'inbox: edit Print styles', sha: got.version, branch: 'main' });
+    const text = Buffer.from(put.content, 'base64').toString();
+    expect(text).toBe(`${splitInbox(original).head}# Print styles\n\nb\n`);
+    expect(saved.version).toBe(blobSha(text));
+
+    await expect(gh.editInbox({ name, version: got.version, title: 'Stale', body: '' })).rejects.toMatchObject({ status: 409 });
+    await expect(gh.discardInbox({ name, version: got.version })).rejects.toMatchObject({ status: 409 });
+
+    expect(await gh.discardInbox({ name, version: saved.version! })).toMatchObject({ committed: true });
+    expect(fake.commits.at(-1)!.body).toMatchObject({ message: 'inbox: discard Print styles', sha: saved.version });
+    await expect(gh.readInbox(name)).rejects.toMatchObject({ status: 404 });
+    await expect(gh.readInbox('../BACKLOG.md')).rejects.toThrow(/not an inbox file/);
   });
 
   it('names a wrong repo, branch or workspace path instead of drawing nothing', async () => {
