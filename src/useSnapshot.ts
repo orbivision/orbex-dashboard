@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Snapshot, SnapshotResponse } from './types';
+import type { FileItem, Snapshot, SnapshotResponse } from './types';
 
 /** 10 minutes. `?refresh=<seconds>` overrides it (min 10 s) for testing the refresh itself. */
 export const REFRESH_MS = (() => {
@@ -15,6 +15,10 @@ export interface SnapshotState {
   /** When the last attempt (successful or not) started — the next timed refresh is REFRESH_MS after it. */
   attemptedAt: number | null;
   refresh: () => void;
+  /** Show a just-captured item at once; the next snapshot (fetched right after) is the truth. */
+  addCapture: (item: FileItem) => void;
+  /** The same for an edit (`patch`) or a discard (`null`) of the capture at `file`. */
+  patchCapture: (file: string, patch: Partial<FileItem> | null) => void;
 }
 
 export function useSnapshot(): SnapshotState {
@@ -24,9 +28,10 @@ export function useSnapshot(): SnapshotState {
   const [attemptedAt, setAttemptedAt] = useState<number | null>(null);
   const lastAttempt = useRef(0);
   const busy = useRef(false);
+  const again = useRef(false);
 
   const load = useCallback(async (fresh: boolean) => {
-    if (busy.current) return;
+    if (busy.current) { again.current = true; return; }
     busy.current = true;
     lastAttempt.current = Date.now();
     setAttemptedAt(lastAttempt.current);
@@ -42,6 +47,8 @@ export function useSnapshot(): SnapshotState {
     } finally {
       busy.current = false;
       setLoading(false);
+      // A capture landed while this load was in flight — its result may predate the write.
+      if (again.current) { again.current = false; void load(false); }
     }
   }, []);
 
@@ -64,7 +71,25 @@ export function useSnapshot(): SnapshotState {
     };
   }, [load]);
 
-  return { snapshot, error, loading, attemptedAt, refresh: () => void load(true) };
+  const addCapture = useCallback((item: FileItem) => {
+    setSnapshot((s) => s && ({ ...s, next: { ...s.next, inbox: [item, ...s.next.inbox.filter((i) => !('file' in i && i.file === item.file))] } }));
+    // The server dropped its cache on the write, so this returns a snapshot that includes it.
+    void load(false);
+  }, [load]);
+
+  const patchCapture = useCallback((file: string, patch: Partial<FileItem> | null) => {
+    setSnapshot((s) => s && ({
+      ...s,
+      next: {
+        ...s.next,
+        inbox: s.next.inbox.flatMap((i) => ('file' in i && i.file === file) ? (patch ? [{ ...i, ...patch }] : []) : [i]),
+      },
+    }));
+    void load(false);
+  }, [load]);
+
+  const refresh = useCallback(() => void load(true), [load]);
+  return { snapshot, error, loading, attemptedAt, refresh, addCapture, patchCapture };
 }
 
 /** Re-render every `ms` so "updated N min ago" stays true. */

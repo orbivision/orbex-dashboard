@@ -89,6 +89,7 @@ export function ageDays(p: Project, today: number) {
   return o == null ? null : Math.round((today - o) / DAY);
 }
 
+/** The file on GitHub (rendered markdown), or null with no GitHub origin. */
 export function planHref(s: Snapshot, file: string) {
   return s.git.githubBase ? s.git.githubBase + file.split('/').map(encodeURIComponent).join('/') : null;
 }

@@ -7,14 +7,14 @@ import { REFRESH_MS } from '../useSnapshot';
 const THEME_KEY = 'orbex-dashboard-theme';
 
 // The wordmark is black in the file; hand its fill to CSS so each theme sets the ink.
-const H = 44;
+const H = 32;
 const [, , vw, vh] = (logoSvg.match(/viewBox="([^"]+)"/)?.[1] ?? '0 0 3 1').split(/\s+/).map(Number);
-const LOGO = logoSvg
+export const LOGO = logoSvg
   .replace(/\s(width|height)="[^"]*"/g, '')
   .replace('<svg ', `<svg class="logo block" role="img" aria-label="Orbex" width="${Math.round((H * vw) / vh)}" height="${H}" `)
   .replace('fill="#000000"', 'class="wordmark"');
 
-function ThemeToggle() {
+export function ThemeToggle() {
   const [theme, setTheme] = useState(() => document.documentElement.dataset.theme ?? 'dark');
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -28,7 +28,7 @@ function ThemeToggle() {
       aria-label={dark ? 'Switch to light mode' : 'Switch to dark mode'}
       className="text-sm text-ink-2 bg-surface border border-ring rounded-full px-3.5 py-1.5 cursor-pointer hover:text-ink hover:border-accent focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2"
     >
-      {dark ? '☀ Light mode' : '☾ Dark mode'}
+      {dark ? '☀ Light' : '☾ Dark'}
     </button>
   );
 }
@@ -38,20 +38,43 @@ function ago(ms: number) {
   return m < 1 ? 'just now' : m === 1 ? '1 min ago' : m < 60 ? `${m} min ago` : `${Math.floor(m / 60)} h ${m % 60} min ago`;
 }
 
-export function Header({ snapshot, now, attemptedAt, loading, refresh }: {
-  snapshot: Snapshot; now: Date; attemptedAt: number | null; loading: boolean; refresh: () => void;
-}) {
-  const c = counts(snapshot.index.projects);
+export interface RefreshProps { snapshot: Snapshot; now: Date; attemptedAt: number | null; loading: boolean; refresh: () => void }
+
+/**
+ * "Updated N min ago from abc123 · next refresh in N min  [↻ Refresh]". Every view shows it
+ * (ORBI-92): they all draw the same snapshot, so every view needs to say how fresh it is.
+ */
+export function RefreshBar({ snapshot, now, attemptedAt, loading, refresh, className = '' }: RefreshProps & { className?: string }) {
   const { git } = snapshot;
   const generated = new Date(snapshot.generatedAt);
   const age = now.getTime() - generated.getTime();
   const nextIn = attemptedAt ? Math.min(REFRESH_MS, Math.max(0, attemptedAt + REFRESH_MS - now.getTime())) : null;
   return (
+    <div className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted ${className}`}>
+      <span title={generated.toLocaleString()}>
+        Updated {ago(age)}
+        {git.sha && (snapshot.source === 'github'
+          ? <> from <code>{git.upstream ?? 'origin'}</code> @ <code>{git.sha}</code> · hosted: shows what's pushed</>
+          : <> from <code>{git.sha}</code>{git.dirty && ' + uncommitted changes'}</>)}
+      </span>
+      {nextIn != null && <span>· next refresh in {Math.ceil(nextIn / 60_000)} min</span>}
+      <button
+        type="button"
+        onClick={refresh}
+        disabled={loading}
+        className="ml-auto text-ink-2 border border-ring rounded-full px-3 py-1 cursor-pointer hover:text-ink hover:border-accent disabled:opacity-60 disabled:cursor-wait"
+      >
+        {loading ? 'Refreshing…' : '↻ Refresh'}
+      </button>
+    </div>
+  );
+}
+
+export function Header(props: RefreshProps) {
+  const { snapshot } = props;
+  const c = counts(snapshot.index.projects);
+  return (
     <header className="mb-6 pb-5 border-b-2 border-brand">
-      <div className="flex items-center justify-between gap-4 mb-5">
-        <div dangerouslySetInnerHTML={{ __html: LOGO }} />
-        <ThemeToggle />
-      </div>
       <h1 className="text-[2rem] font-bold tracking-tight leading-tight">{snapshot.name}</h1>
       <p className="text-ink-2 mt-1">{plural(snapshot.index.projects.length, 'project')} · key <code>{snapshot.index.key ?? '—'}</code></p>
       <ul className="flex flex-wrap gap-2 my-3">
@@ -59,22 +82,8 @@ export function Header({ snapshot, now, attemptedAt, loading, refresh }: {
           <li key={s} className="bg-surface border border-ring rounded-full px-3 py-1 text-ink-2"><b className="text-accent">{c[s]}</b> {s}</li>
         ))}
       </ul>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
-        <span title={generated.toLocaleString()}>
-          Updated {ago(age)}
-          {git.sha && <> from <code>{git.sha}</code>{git.dirty && ' + uncommitted changes'}</>}
-        </span>
-        {nextIn != null && <span>· next refresh in {Math.ceil(nextIn / 60_000)} min</span>}
-        <button
-          type="button"
-          onClick={refresh}
-          disabled={loading}
-          className="ml-auto text-ink-2 border border-ring rounded-full px-3 py-1 cursor-pointer hover:text-ink hover:border-accent disabled:opacity-60 disabled:cursor-wait"
-        >
-          {loading ? 'Refreshing…' : '↻ Refresh'}
-        </button>
-      </div>
-      <OriginStatus git={git} />
+      <RefreshBar {...props} />
+      <OriginStatus git={snapshot.git} />
     </header>
   );
 }

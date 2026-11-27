@@ -1,4 +1,5 @@
-import type { ReactNode } from 'react';
+import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import { Link, projectPath } from '../router';
 
 export function Card({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`bg-surface border border-ring rounded-xl p-5 ${className}`}>{children}</section>;
@@ -53,6 +54,22 @@ export function Legend({ items }: { items: [string, string][] }) {
   );
 }
 
-export function PlanLink({ href, children, className = '' }: { href: string | null; children: ReactNode; className?: string }) {
-  return href ? <a href={href} target="_blank" rel="noreferrer" className={className}>{children}</a> : <span className={className}>{children}</span>;
+/** A project, opened in the Projects view (ORBI-92) — not on GitHub, which the detail page links to. */
+export function PlanLink({ id, children, className = '' }: { id: string; children: ReactNode; className?: string }) {
+  return <Link to={projectPath(id)} className={className}>{children}</Link>;
+}
+
+export function Button({ children, className = '', primary = false, ...rest }: { primary?: boolean } & ButtonHTMLAttributes<HTMLButtonElement>) {
+  const look = primary
+    ? 'bg-brand text-white border-brand hover:brightness-110'
+    : 'text-ink-2 bg-surface border-ring hover:text-ink hover:border-accent';
+  return (
+    <button
+      type="button"
+      className={`text-sm border rounded-full px-3.5 py-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-default focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${look} ${className}`}
+      {...rest}
+    >
+      {children}
+    </button>
+  );
 }

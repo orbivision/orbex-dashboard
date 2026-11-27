@@ -3,8 +3,9 @@
 // <title> tooltips, and a table view.
 
 import type { Project, Snapshot } from '../types';
-import { cycleTime, daysText, fmt, niceAxis, plural, planHref, short, throughput, timeline } from '../derive';
-import { Card, Legend, PlanLink, TableView } from './ui';
+import { cycleTime, daysText, fmt, niceAxis, plural, short, throughput, timeline } from '../derive';
+import { Link, projectPath } from '../router';
+import { Card, Legend, TableView } from './ui';
 
 /** Vertical bar: 4px rounded data-end, square on the baseline. */
 function bar(x: number, y: number, w: number, h: number) {
@@ -126,11 +127,9 @@ export function Timeline({ snapshot, today }: { snapshot: Snapshot; today: numbe
           {spans.map(({ p, start, end, kind }, i) => {
             const yy = T + i * rowH, x0 = x(start), w = Math.max(6, x(end) - x0);
             const tip = `${p.id} — ${p.title} (${p.status}; opened ${p.opened}${p.closed ? `, closed ${p.closed}` : ''})`;
-            const href = planHref(snapshot, p.file);
-            const label = <text className="fill-ink-2 hover:underline" x={L - 8} y={yy + 15} textAnchor="end">{p.id}</text>;
             return (
               <g key={p.id}>
-                {href ? <a href={href} target="_blank" rel="noreferrer">{label}</a> : label}
+                <Link to={projectPath(p.id)}><text className="fill-ink-2 hover:underline" x={L - 8} y={yy + 15} textAnchor="end">{p.id}</text></Link>
                 <rect className={cls[kind]} x={x0} y={yy + 5} width={w} height={rowH - 10} rx={3}><title>{tip}</title></rect>
               </g>
             );
@@ -142,4 +141,3 @@ export function Timeline({ snapshot, today }: { snapshot: Snapshot; today: numbe
   );
 }
 
-export { PlanLink };
