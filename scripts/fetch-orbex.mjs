@@ -31,8 +31,13 @@ if (process.env.ORBEX_HOME) {
   if (!res.ok) throw new Error(`fetching ${url}: HTTP ${res.status}`);
   const tgz = path.join(tmpdir(), `orbex-${process.pid}.tgz`);
   writeFileSync(tgz, Buffer.from(await res.arrayBuffer()));
-  // The archive's top directory is <name>-<ref>; strip it and keep only scripts/.
-  execFileSync('tar', ['-xzf', tgz, '-C', OUT, '--strip-components=1', '--wildcards', '*/scripts/*']);
+  // The archive's top directory is <name>-<ref>; strip it and keep only scripts/. Extract it all
+  // and copy, because a member pattern needs --wildcards on GNU tar and that flag breaks bsdtar.
+  const tmp = path.join(tmpdir(), `orbex-${process.pid}`);
+  mkdirSync(tmp, { recursive: true });
+  execFileSync('tar', ['-xzf', tgz, '-C', tmp, '--strip-components=1']);
+  cpSync(path.join(tmp, 'scripts'), path.join(OUT, 'scripts'), { recursive: true });
+  rmSync(tmp, { recursive: true, force: true });
   rmSync(tgz, { force: true });
   writeFileSync(path.join(OUT, 'REF'), `${repo}@${ref}\n`);
 }
