@@ -5,10 +5,17 @@ import type { Session } from '../types';
 import { Link } from '../router';
 import { LOGO, ThemeToggle } from './Header';
 
+// Icons are one 16px stroke set in a fixed slot, so every label starts at the same x — text
+// glyphs (◧ ☰ ✉) have different advance widths and never lined up.
+const icon = (d: string) => (
+  <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+    <path d={d} />
+  </svg>
+);
 const NAV = [
-  { to: '/', label: 'Dashboard', icon: '◧', match: (p: string) => p === '/' },
-  { to: '/projects', label: 'Projects', icon: '☰', match: (p: string) => p.startsWith('/projects') },
-  { to: '/inbox', label: 'Inbox', icon: '✉', match: (p: string) => p === '/inbox' || p.startsWith('/inbox/') },
+  { to: '/', label: 'Dashboard', icon: icon('M2.5 2.5h4.5v4.5h-4.5zM9 2.5h4.5v4.5H9zM2.5 9h4.5v4.5h-4.5zM9 9h4.5v4.5H9z'), match: (p: string) => p === '/' },
+  { to: '/projects', label: 'Projects', icon: icon('M5.5 4h8M5.5 8h8M5.5 12h8M2.5 4h.01M2.5 8h.01M2.5 12h.01'), match: (p: string) => p.startsWith('/projects') },
+  { to: '/inbox', label: 'Inbox', icon: icon('M2 9.5l1.8-6h8.4l1.8 6v3.5H2zM2 9.5h3.5l1 1.5h3l1-1.5H14'), match: (p: string) => p === '/inbox' || p.startsWith('/inbox/') },
 ];
 
 function Nav({ path, session, inboxCount, onCapture, onNavigate }: {
@@ -40,7 +47,7 @@ function Nav({ path, session, inboxCount, onCapture, onNavigate }: {
                   aria-current={active ? 'page' : undefined}
                   className={`flex items-center gap-2.5 rounded-lg px-3 py-2 no-underline ${active ? 'bg-code text-ink font-semibold' : 'text-ink-2 hover:bg-code hover:text-ink'}`}
                 >
-                  <span aria-hidden className={active ? 'text-accent' : 'text-muted'}>{n.icon}</span>{n.label}
+                  <span className={`flex w-4 shrink-0 justify-center ${active ? 'text-accent' : 'text-muted'}`}>{n.icon}</span>{n.label}
                   {n.to === '/inbox' && !!inboxCount && (
                     <span className="ml-auto text-xs font-semibold text-white bg-brand rounded-full px-2 py-0.5" aria-label={`${inboxCount} untriaged`}>{inboxCount}</span>
                   )}
