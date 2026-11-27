@@ -142,7 +142,9 @@ export function createApi({ source, auth, cacheMs = 60_000 }) {
         cache = null; // the next snapshot must include it
         return json(201, { ok: true, ...result });
       } catch (e) {
-        return json(e.status ?? 502, { ok: false, error: `capture failed: ${e.message}` });
+        // An upstream status (GitHub's 401, say) must not reach the page as OUR 401 — that reads
+        // as "you're signed out". Anything that isn't a validation error is a bad gateway.
+        return json(e instanceof CaptureError ? e.status : 502, { ok: false, error: `capture failed: ${e.message}` });
       }
     },
 
