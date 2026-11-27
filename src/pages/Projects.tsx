@@ -1,12 +1,15 @@
-// Every project from build-project-index --json, filterable. Order is the index's own
-// (in flight first) — this view re-sorts nothing it could disagree about.
+// Every project from build-project-index --json, filterable — plus, behind the "backlog" chip,
+// BACKLOG.md's items: ideas that aren't projects yet, listed after the projects in Now → Soon →
+// Someday order. They have no plan, id or repos, so the repo filter hides them.
 import { useMemo, useState } from 'react';
 import { STATUSES, ageDays, counts, plural } from '../derive';
-import type { Project } from '../types';
-import { Card, Count, Empty, H2, PlanLink } from '../components/ui';
+import type { BacklogItem, Project } from '../types';
+import { Card, Count, Empty, H2, Md, PlanLink } from '../components/ui';
 import { RefreshBar, type RefreshProps } from '../components/Header';
 
 const ORDER: Record<string, number> = { blocked: 0, active: 1, open: 2, done: 3, dropped: 4 };
+const SECTIONS: Record<string, number> = { Now: 0, Soon: 1, Someday: 2 };
+const BACKLOG = 'backlog';
 const FILTER_KEY = 'orbex-dashboard-projects-filter';
 
 function loadFilter(): string[] {
@@ -34,6 +37,17 @@ export function Projects({ today, ...refreshProps }: RefreshProps & { today: num
       .filter((p) => !needle || `${p.id} ${p.title}`.toLowerCase().includes(needle))
       .sort((a, b) => (ORDER[a.status] ?? 9) - (ORDER[b.status] ?? 9) || b.num - a.num);
   }, [all, statuses, repo, q]);
+  const backlog = snapshot.next.backlog;
+  const ideas = useMemo(() => {
+    const needle = q.trim().toLowerCase();
+    if (!statuses.includes(BACKLOG) || repo) return [];
+    return backlog
+      .filter((b) => !needle || b.title.toLowerCase().includes(needle))
+      .map((b, i) => ({ b, i }))
+      .sort((x, y) => (SECTIONS[x.b.section] ?? 9) - (SECTIONS[y.b.section] ?? 9) || x.i - y.i) // file order within a section
+      .map((x) => x.b);
+  }, [backlog, statuses, repo, q]);
+  const backlogHref = snapshot.git.githubBase ? `${snapshot.git.githubBase}BACKLOG.md` : null;
 
   const toggle = (s: string) => {
     const next = statuses.includes(s) ? statuses.filter((x) => x !== s) : [...statuses, s];
@@ -48,7 +62,7 @@ export function Projects({ today, ...refreshProps }: RefreshProps & { today: num
       <RefreshBar {...refreshProps} className="mb-5" />
       <Card className="mb-4">
         <div className="flex flex-wrap gap-2 mb-3" role="group" aria-label="Filter by status">
-          {STATUSES.map((s) => {
+          {[...STATUSES, BACKLOG].map((s) => {
             const on = statuses.includes(s);
             return (
               <button
@@ -56,9 +70,10 @@ export function Projects({ today, ...refreshProps }: RefreshProps & { today: num
                 type="button"
                 aria-pressed={on}
                 onClick={() => toggle(s)}
-                className={`rounded-full px-3 py-1 text-sm border cursor-pointer ${on ? 'border-accent text-ink bg-code' : 'border-ring text-muted hover:text-ink'}`}
+                title={s === BACKLOG ? 'BACKLOG.md items — ideas that are not projects yet' : undefined}
+                className={`rounded-full px-3 py-1 text-sm border cursor-pointer ${s === BACKLOG ? 'sm:ml-3' : ''} ${on ? 'border-accent text-ink bg-code' : 'border-ring text-muted hover:text-ink'}`}
               >
-                {s} <span className={on ? 'text-accent font-semibold' : ''}>{c[s] ?? 0}</span>
+                {s} <span className={on ? 'text-accent font-semibold' : ''}>{s === BACKLOG ? backlog.length : ((c as Record<string, number>)[s] ?? 0)}</span>
               </button>
             );
           })}
@@ -86,13 +101,17 @@ export function Projects({ today, ...refreshProps }: RefreshProps & { today: num
         </div>
       </Card>
       <Card>
-        <H2>Showing <Count n={shown.length} /></H2>
-        {shown.length ? (
+        <H2>Showing <Count n={shown.length + ideas.length} /></H2>
+        {shown.length || ideas.length ? (
           <ul className="divide-y divide-grid">
             {shown.map((p) => <Row key={p.id} p={p} today={today} />)}
+            {ideas.map((b, i) => <IdeaRow key={`${b.section}-${i}-${b.title}`} b={b} href={backlogHref} />)}
           </ul>
         ) : (
-          <Empty>No project matches these filters.</Empty>
+          <Empty>Nothing matches these filters.</Empty>
+        )}
+        {statuses.includes(BACKLOG) && repo && !!backlog.length && (
+          <p className="text-sm text-muted mt-2">Backlog items have no repo, so the repo filter hides them.</p>
         )}
       </Card>
     </>
@@ -115,6 +134,20 @@ function Row({ p, today }: { p: Project; today: number }) {
         {age != null && <span>· open {plural(age, 'day')}</span>}
         {!!p.repos?.length && <span className="flex flex-wrap gap-1">· {p.repos.map((r) => <code key={r}>{r}</code>)}</span>}
       </p>
+    </li>
+  );
+}
+
+/** A BACKLOG.md item: no plan to open yet, so it links to the file itself when hosted on GitHub. */
+function IdeaRow({ b, href }: { b: BacklogItem; href: string | null }) {
+  return (
+    <li className="py-2.5">
+      {href ? (
+        <a href={href} target="_blank" rel="noreferrer" className="no-underline hover:underline font-medium"><Md text={b.title} /></a>
+      ) : (
+        <span className="font-medium"><Md text={b.title} /></span>
+      )}
+      <p className="text-sm text-ink-2 mt-0.5">backlog · {b.section}</p>
     </li>
   );
 }
