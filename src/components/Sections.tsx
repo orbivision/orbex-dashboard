@@ -1,5 +1,6 @@
 import { isFile, type Snapshot } from '../types';
 import { ageDays, plural } from '../derive';
+import { inboxPath, Link } from '../router';
 import { Card, Count, Empty, ErrorBox, H2, Md, Note, PlanLink } from './ui';
 
 export function InFlight({ snapshot, today }: { snapshot: Snapshot; today: number }) {
@@ -40,7 +41,7 @@ export function Inbox({ snapshot, onCapture }: { snapshot: Snapshot; onCapture?:
   return (
     <Card>
       <div className="flex items-baseline justify-between gap-3">
-        <H2>Inbox <Count n={unknown ? '–' : inbox.length} /></H2>
+        <H2><Link to="/inbox" className="text-ink no-underline hover:underline">Inbox</Link> <Count n={unknown ? '–' : inbox.length} /></H2>
         {onCapture && <button type="button" onClick={onCapture} className="text-sm text-accent hover:underline cursor-pointer">＋ Capture</button>}
       </div>
       {inboxFilesError && <div className="mb-2"><ErrorBox><b>Captures not listed:</b> {inboxFilesError}.</ErrorBox></div>}
@@ -73,20 +74,18 @@ export function Inbox({ snapshot, onCapture }: { snapshot: Snapshot; onCapture?:
   );
 }
 
+/** A capture: opens in the Inbox editor. */
 function InboxFile({ item }: { item: import('../types').FileItem }) {
   const when = item.createdAt ? new Date(item.createdAt) : null;
-  const head = (
-    <>
-      <span className="text-muted shrink-0" title={item.file}>✎</span>
-      <span><Md text={item.title} />{when && <span className="text-muted text-sm"> · {when.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>}</span>
-    </>
-  );
-  if (!item.body) return <div className="flex gap-2">{head}</div>;
   return (
-    <details className="group">
-      <summary className="flex gap-2 cursor-pointer list-none [&::-webkit-details-marker]:hidden">{head}</summary>
-      <p className="ml-6 mt-1 text-sm text-ink-2 whitespace-pre-wrap">{item.body}</p>
-    </details>
+    <Link to={inboxPath(item.file)} title={item.file} className="flex gap-2 text-ink no-underline group">
+      <span className="text-muted shrink-0">✎</span>
+      <span>
+        <span className="group-hover:underline"><Md text={item.title} /></span>
+        {when && <span className="text-muted text-sm"> · {when.toLocaleDateString('en', { month: 'short', day: 'numeric' })}</span>}
+        {item.body && <span className="block text-sm text-ink-2 line-clamp-1">{item.body}</span>}
+      </span>
+    </Link>
   );
 }
 

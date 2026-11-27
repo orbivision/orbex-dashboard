@@ -4,11 +4,11 @@
 // file in the working tree and deliberately does NOT commit: committing is the user's act, and
 // orbex's Stop hook warns about uncommitted inbox/ captures the same way it does for memory.
 
-import { open, readFile } from 'node:fs/promises';
+import { open, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { buildSnapshot } from '../snapshot.mjs';
-import { captureContent, captureFilename, captureItem } from '../capture.mjs';
+import { blobSha, captureContent, captureFilename, captureItem, conflict, editedContent, gone, isInboxName } from '../capture.mjs';
 
 export class LocalSource {
   /** `ws` is resolveWorkspace()'s result; `options` are buildSnapshot's. */
@@ -53,5 +53,41 @@ export class LocalSource {
       return { item: captureItem(name, entry, now), committed: false };
     }
     throw new Error('could not find a free filename in inbox/');
+  }
+
+  // ── Edit / discard (ORBI-92 addendum). Captures are usually UNTRACKED here, so git can't undo
+  // a bad write — the version check is the only thing between two editors and a lost edit.
+
+  inboxFile(name) {
+    if (!isInboxName(name)) throw new Error(`not an inbox file name: ${name}`);
+    return path.join(this.ws.root, 'inbox', name);
+  }
+
+  async readInbox(name) {
+    try {
+      const text = await readFile(this.inboxFile(name), 'utf8');
+      return { text, version: blobSha(text) };
+    } catch (e) {
+      if (e.code === 'ENOENT') throw gone(name);
+      throw e;
+    }
+  }
+
+  async editInbox({ name, version, title, body }) {
+    const { text, version: current } = await this.readInbox(name);
+    if (current !== version) throw conflict();
+    const next = editedContent(text, { title, body });
+    const file = this.inboxFile(name);
+    const tmp = path.join(path.dirname(file), `.${name}.${process.pid}.tmp`); // dotfile: next.mjs skips it
+    await writeFile(tmp, next);
+    await rename(tmp, file); // atomic: a reader sees the old file or the new one, never half
+    return { version: blobSha(next), committed: false };
+  }
+
+  async discardInbox({ name, version }) {
+    const { version: current } = await this.readInbox(name);
+    if (current !== version) throw conflict();
+    await unlink(this.inboxFile(name));
+    return { committed: false };
   }
 }

@@ -8,10 +8,11 @@ import { LOGO, ThemeToggle } from './Header';
 const NAV = [
   { to: '/', label: 'Dashboard', icon: '◧', match: (p: string) => p === '/' },
   { to: '/projects', label: 'Projects', icon: '☰', match: (p: string) => p.startsWith('/projects') },
+  { to: '/inbox', label: 'Inbox', icon: '✉', match: (p: string) => p === '/inbox' || p.startsWith('/inbox/') },
 ];
 
-function Nav({ path, session, onCapture, onNavigate }: {
-  path: string; session: Session | null; onCapture: () => void; onNavigate?: () => void;
+function Nav({ path, session, inboxCount, onCapture, onNavigate }: {
+  path: string; session: Session | null; inboxCount: number | null; onCapture: () => void; onNavigate?: () => void;
 }) {
   return (
     <div className="flex flex-col h-full gap-6">
@@ -40,6 +41,9 @@ function Nav({ path, session, onCapture, onNavigate }: {
                   className={`flex items-center gap-2.5 rounded-lg px-3 py-2 no-underline ${active ? 'bg-code text-ink font-semibold' : 'text-ink-2 hover:bg-code hover:text-ink'}`}
                 >
                   <span aria-hidden className={active ? 'text-accent' : 'text-muted'}>{n.icon}</span>{n.label}
+                  {n.to === '/inbox' && !!inboxCount && (
+                    <span className="ml-auto text-xs font-semibold text-white bg-brand rounded-full px-2 py-0.5" aria-label={`${inboxCount} untriaged`}>{inboxCount}</span>
+                  )}
                 </Link>
               </li>
             );
@@ -66,8 +70,8 @@ function Nav({ path, session, onCapture, onNavigate }: {
   );
 }
 
-export function Shell({ path, session, onCapture, children }: {
-  path: string; session: Session | null; onCapture: () => void; children: ReactNode;
+export function Shell({ path, session, inboxCount, onCapture, children }: {
+  path: string; session: Session | null; inboxCount: number | null; onCapture: () => void; children: ReactNode;
 }) {
   const [drawer, setDrawer] = useState(false);
   useEffect(() => setDrawer(false), [path]);
@@ -81,7 +85,7 @@ export function Shell({ path, session, onCapture, children }: {
   return (
     <div className="min-h-screen md:grid md:grid-cols-[220px_1fr]">
       <aside className="hidden md:block sticky top-0 h-screen border-r border-ring bg-surface px-3 py-5">
-        <Nav path={path} session={session} onCapture={onCapture} />
+        <Nav path={path} session={session} inboxCount={inboxCount} onCapture={onCapture} />
       </aside>
 
       <header className="md:hidden sticky top-0 z-20 flex items-center gap-3 border-b border-ring bg-surface px-4 py-2.5">
@@ -106,7 +110,7 @@ export function Shell({ path, session, onCapture, children }: {
         <div className="md:hidden fixed inset-0 z-30" role="dialog" aria-modal="true" aria-label="Navigation">
           <button type="button" aria-label="Close navigation" className="absolute inset-0 bg-black/50 cursor-default" onClick={() => setDrawer(false)} />
           <div className="absolute inset-y-0 left-0 w-[260px] max-w-[80vw] bg-surface border-r border-ring px-3 py-5">
-            <Nav path={path} session={session} onCapture={onCapture} onNavigate={() => setDrawer(false)} />
+            <Nav path={path} session={session} inboxCount={inboxCount} onCapture={onCapture} onNavigate={() => setDrawer(false)} />
           </div>
         </div>
       )}
