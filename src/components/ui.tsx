@@ -66,7 +66,7 @@ export function Button({ children, className = '', primary = false, ...rest }: {
   return (
     <button
       type="button"
-      className={`text-sm border rounded-full px-3.5 py-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-wait focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${look} ${className}`}
+      className={`text-sm border rounded-full px-3.5 py-1.5 cursor-pointer disabled:opacity-60 disabled:cursor-default focus-visible:outline-2 focus-visible:outline-accent focus-visible:outline-offset-2 ${look} ${className}`}
       {...rest}
     >
       {children}

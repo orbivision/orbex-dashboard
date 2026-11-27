@@ -6,13 +6,16 @@
 //   GET  /api/snapshot[?fresh=1] the producers' output + metadata, cached ≤ cacheMs
 //   GET  /api/plan?id=ORBI-12    one project's plan.md, raw — id looked up in the index, never a path
 //   POST /api/inbox              { title, body? } → creates one inbox/ file
+//   GET  /api/inbox/item?name=   one capture: { title, body, version }
+//   PUT  /api/inbox/item         { name, version, title, body? } → rewrites it; 409 if stale
+//   DELETE /api/inbox/item       { name, version } → discards it; 409 if stale
 //
 // Writes need the `X-Orbex-Request: 1` header. A browser can't send a custom header cross-origin
 // without a CORS preflight, and nothing here answers one — so another site can't make a signed-in
 // browser capture on its behalf.
 
 import { validate } from './snapshot.mjs';
-import { CaptureError, parseCapture } from './capture.mjs';
+import { CaptureError, isInboxName, parseCapture, parseWrite, splitInbox } from './capture.mjs';
 
 const PLAN_FILE = /^projects\/[A-Za-z][A-Za-z0-9]*-\d+\/(plan|recommendation)\.md$/;
 export const WRITE_HEADER = 'x-orbex-request';
@@ -54,6 +57,42 @@ export function createApi({ source, auth, cacheMs = 60_000 }) {
     return inflight;
   }
 
+  /**
+   * A capture the producers currently list — looked up, never trusted as a path (the same rule
+   * as /api/plan). Returns a Response to send instead when it isn't one.
+   */
+  async function listed(name) {
+    if (!isInboxName(name)) return json(400, { ok: false, error: 'not an inbox file name' });
+    let s;
+    try { s = await snapshot(false); } catch (e) { return json(502, { ok: false, error: e.message }); }
+    if (!s.next.inbox.some((i) => i.source === 'file' && i.file === `inbox/${name}`)) {
+      return json(404, { ok: false, error: `inbox/${name} isn't in the inbox — it may have been triaged` });
+    }
+    return null;
+  }
+
+  /** PUT and DELETE share everything but the call. */
+  const write = (edit) => async (req) => {
+    if (typeof source.editInbox !== 'function') return json(405, { ok: false, error: 'this source is read-only' });
+    if (req.headers.get(WRITE_HEADER) !== '1') return json(403, { ok: false, error: `missing ${WRITE_HEADER} header` });
+    let entry;
+    try {
+      entry = parseWrite(await req.json().catch(() => { throw new CaptureError('the body is not JSON'); }), { edit });
+    } catch (e) {
+      return json(e.status ?? 400, { ok: false, error: e.message });
+    }
+    const refused = await listed(entry.name);
+    if (refused) return refused;
+    try {
+      const result = edit ? await source.editInbox(entry) : await source.discardInbox(entry);
+      cache = null;
+      return json(200, { ok: true, name: entry.name, ...(edit ? { title: entry.title, body: entry.body } : {}), ...result });
+    } catch (e) {
+      // 404/409 are ours to report; an upstream failure is a bad gateway, never a 401 (see capture).
+      return json(e instanceof CaptureError ? e.status : 502, { ok: false, error: `${edit ? 'save' : 'discard'} failed: ${e.message}` });
+    }
+  };
+
   const routes = {
     'GET /api/session': async (_req, user) => json(200, {
       ok: true,
@@ -62,6 +101,7 @@ export function createApi({ source, auth, cacheMs = 60_000 }) {
       source: source.kind,
       name: source.name,
       canCapture: typeof source.capture === 'function',
+      canEdit: typeof source.editInbox === 'function',
     }),
 
     'GET /api/snapshot': async (req) => {
@@ -105,6 +145,23 @@ export function createApi({ source, auth, cacheMs = 60_000 }) {
         return json(e.status ?? 502, { ok: false, error: `capture failed: ${e.message}` });
       }
     },
+
+    'GET /api/inbox/item': async (req) => {
+      const name = new URL(req.url).searchParams.get('name') ?? '';
+      const refused = await listed(name);
+      if (refused) return refused;
+      if (typeof source.readInbox !== 'function') return json(405, { ok: false, error: 'this source cannot read captures' });
+      try {
+        const { text, version } = await source.readInbox(name);
+        const { title, body } = splitInbox(text);
+        return json(200, { ok: true, name, file: `inbox/${name}`, title, body, version });
+      } catch (e) {
+        return json(e instanceof CaptureError ? e.status : 502, { ok: false, error: e.message });
+      }
+    },
+
+    'PUT /api/inbox/item': write(true),
+    'DELETE /api/inbox/item': write(false),
   };
 
   /** Returns a Response for /api/* paths, or null for anything else. */

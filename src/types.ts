@@ -60,6 +60,8 @@ export interface Session {
   source: 'local' | 'github';
   name: string;
   canCapture: boolean;
+  /** The source can edit and discard captures (ORBI-92 addendum). Older servers omit it. */
+  canEdit?: boolean;
 }
 
 export type SnapshotResponse = { ok: true; snapshot: Snapshot } | { ok: false; error: string };

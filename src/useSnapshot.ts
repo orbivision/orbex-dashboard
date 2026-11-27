@@ -17,6 +17,8 @@ export interface SnapshotState {
   refresh: () => void;
   /** Show a just-captured item at once; the next snapshot (fetched right after) is the truth. */
   addCapture: (item: FileItem) => void;
+  /** The same for an edit (`patch`) or a discard (`null`) of the capture at `file`. */
+  patchCapture: (file: string, patch: Partial<FileItem> | null) => void;
 }
 
 export function useSnapshot(): SnapshotState {
@@ -75,8 +77,19 @@ export function useSnapshot(): SnapshotState {
     void load(false);
   }, [load]);
 
+  const patchCapture = useCallback((file: string, patch: Partial<FileItem> | null) => {
+    setSnapshot((s) => s && ({
+      ...s,
+      next: {
+        ...s.next,
+        inbox: s.next.inbox.flatMap((i) => ('file' in i && i.file === file) ? (patch ? [{ ...i, ...patch }] : []) : [i]),
+      },
+    }));
+    void load(false);
+  }, [load]);
+
   const refresh = useCallback(() => void load(true), [load]);
-  return { snapshot, error, loading, attemptedAt, refresh, addCapture };
+  return { snapshot, error, loading, attemptedAt, refresh, addCapture, patchCapture };
 }
 
 /** Re-render every `ms` so "updated N min ago" stays true. */

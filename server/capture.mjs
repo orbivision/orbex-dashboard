@@ -8,6 +8,8 @@
 // Both sources share this module, so a capture is byte-identical whether it was written to a
 // working tree or committed through the GitHub API.
 
+import { createHash } from 'node:crypto';
+
 export const TITLE_MAX = 200;
 export const BODY_MAX = 10_000;
 
@@ -68,3 +70,44 @@ export function captureItem(name, { title, body }, now = new Date()) {
     body: body || null,
   };
 }
+
+// ── Editing and discarding (ORBI-92 addendum) ───────────────────────────────────────────────
+//
+// The first writes that can lose work, so every one carries the `version` it was based on: the
+// file's GIT BLOB SHA. GitHub reports exactly that for a file, and a local checkout can compute
+// it, so both sources agree byte-for-byte and a stale save is refused (409) in either mode.
+
+/** An inbox file name as next.mjs lists it: `<name>.md`, no directory, no dotfile, not the README. */
+const INBOX_NAME = /^[^./\\][^/\\]*\.md$/;
+export const isInboxName = (name) => typeof name === 'string' && INBOX_NAME.test(name) && name.toLowerCase() !== 'readme.md';
+
+/** `git hash-object` for a blob — the same 40-hex sha GitHub's Contents API returns. */
+export function blobSha(text) {
+  const bytes = Buffer.from(text, 'utf8');
+  return createHash('sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+}
+
+/**
+ * Split an inbox file at its `# title` line: `head` is everything before it (frontmatter, and
+ * anything hand-added), kept verbatim by an edit.
+ */
+export function splitInbox(text) {
+  const m = /^# +(.+?)[ \t]*$/m.exec(text);
+  if (!m) return { head: text.endsWith('\n') || !text ? text : `${text}\n`, title: '', body: '' };
+  return { head: text.slice(0, m.index), title: m[1], body: text.slice(m.index + m[0].length).trim() };
+}
+
+export function editedContent(text, { title, body }) {
+  return `${splitInbox(text).head}# ${title}\n${body ? `\n${body}\n` : ''}`;
+}
+
+/** Validate an edit or discard request: `{ name, version }` plus, for an edit, title and body. */
+export function parseWrite(input, { edit }) {
+  if (!input || typeof input !== 'object') throw new CaptureError('expected a JSON object');
+  if (!isInboxName(input.name)) throw new CaptureError('not an inbox file name');
+  if (typeof input.version !== 'string' || !/^[0-9a-f]{40}$/.test(input.version)) throw new CaptureError('a version is required');
+  return { name: input.name, version: input.version, ...(edit ? parseCapture(input) : {}) };
+}
+
+export const conflict = () => new CaptureError('this capture changed since you opened it', 409);
+export const gone = (name) => new CaptureError(`inbox/${name} no longer exists — it may have been triaged`, 404);

@@ -4,6 +4,7 @@ import { Shell } from './components/Shell';
 import { ErrorBox } from './components/ui';
 import { todayOf } from './derive';
 import { Dashboard } from './pages/Dashboard';
+import { InboxPage } from './pages/Inbox';
 import { ProjectDetail } from './pages/ProjectDetail';
 import { Projects } from './pages/Projects';
 import { usePath } from './router';
@@ -14,7 +15,7 @@ import { useNow, useSnapshot } from './useSnapshot';
 export default function App() {
   const path = usePath();
   const { session, error: sessionError } = useSession();
-  const { snapshot, error, loading, attemptedAt, refresh, addCapture } = useSnapshot();
+  const { snapshot, error, loading, attemptedAt, refresh, addCapture, patchCapture } = useSnapshot();
   const [capturing, setCapturing] = useState(false);
   const now = useNow();
   const today = todayOf(now);
@@ -29,6 +30,9 @@ export default function App() {
     page = <Projects {...refreshProps} snapshot={snapshot} today={today} />;
   } else if (path.startsWith('/projects/')) {
     page = <ProjectDetail {...refreshProps} snapshot={snapshot} id={decodeURIComponent(path.slice('/projects/'.length))} />;
+  } else if (path === '/inbox' || path.startsWith('/inbox/')) {
+    const name = path.startsWith('/inbox/') ? decodeURIComponent(path.slice('/inbox/'.length)) || null : null;
+    page = <InboxPage {...refreshProps} snapshot={snapshot} name={name} session={session} onCapture={canCapture ? openCapture : undefined} patchCapture={patchCapture} />;
   } else if (path === '/') {
     page = <Dashboard snapshot={snapshot} now={now} today={today} attemptedAt={attemptedAt} loading={loading} refresh={refresh} onCapture={canCapture ? openCapture : undefined} />;
   } else {
@@ -36,7 +40,7 @@ export default function App() {
   }
 
   return (
-    <Shell path={path} session={session} onCapture={openCapture}>
+    <Shell path={path} session={session} inboxCount={snapshot ? snapshot.next.inbox.length : null} onCapture={openCapture}>
       <main className="px-4 sm:px-6 lg:px-8 pt-8 pb-16">
         {snapshot && error && (
           // Keep the last good data, but never let stale look fresh.
